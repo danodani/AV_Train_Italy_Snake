@@ -38,7 +38,7 @@ export default function App() {
   const [gameState, setGameState] = useState<GameState>('idle');
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(() => {
-    const saved = localStorage.getItem('snake-highscore');
+    const saved = localStorage.getItem('duck-highscore');
     return saved ? parseInt(saved, 10) : 0;
   });
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
@@ -235,7 +235,7 @@ export default function App() {
                 const newScore = s + 10;
                 setHighScore(hs => {
                   const newHs = Math.max(hs, newScore);
-                  localStorage.setItem('snake-highscore', newHs.toString());
+                  localStorage.setItem('duck-highscore', newHs.toString());
                   return newHs;
                 });
                 return newScore;
@@ -272,12 +272,16 @@ export default function App() {
     canvas.width = size;
     canvas.height = size;
 
-    // Background
-    ctx.fillStyle = '#1a1a2e';
+    // Background - green meadow
+    const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+    bgGrad.addColorStop(0, '#2d5a27');
+    bgGrad.addColorStop(0.5, '#3a6b34');
+    bgGrad.addColorStop(1, '#2d5a27');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, size, size);
 
-    // Grid lines
-    ctx.strokeStyle = '#16213e';
+    // Subtle grid (grass texture)
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     ctx.lineWidth = 0.5;
     for (let i = 0; i <= GRID_SIZE; i++) {
       ctx.beginPath();
@@ -290,133 +294,259 @@ export default function App() {
       ctx.stroke();
     }
 
-    // Food with glow
-    ctx.shadowColor = '#ff6b6b';
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = '#ff6b6b';
+    // Small grass dots for texture
+    ctx.fillStyle = 'rgba(100, 200, 80, 0.15)';
+    for (let i = 0; i < 60; i++) {
+      const gx = Math.random() * size;
+      const gy = Math.random() * size;
+      ctx.beginPath();
+      ctx.arc(gx, gy, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Food - grain disc / bread
+    ctx.shadowColor = '#ffcc00';
+    ctx.shadowBlur = 12;
+    const foodCx = food.x * CELL_SIZE + CELL_SIZE / 2;
+    const foodCy = food.y * CELL_SIZE + CELL_SIZE / 2;
+
+    // Outer glow ring
+    ctx.fillStyle = 'rgba(255, 200, 0, 0.2)';
     ctx.beginPath();
-    ctx.arc(
-      food.x * CELL_SIZE + CELL_SIZE / 2,
-      food.y * CELL_SIZE + CELL_SIZE / 2,
-      CELL_SIZE / 2 - 2,
-      0,
-      Math.PI * 2
-    );
+    ctx.arc(foodCx, foodCy, CELL_SIZE / 2 + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main disc
+    const foodGrad = ctx.createRadialGradient(foodCx - 2, foodCy - 2, 1, foodCx, foodCy, CELL_SIZE / 2 - 1);
+    foodGrad.addColorStop(0, '#ffe066');
+    foodGrad.addColorStop(0.7, '#f5a623');
+    foodGrad.addColorStop(1, '#d4880f');
+    ctx.fillStyle = foodGrad;
+    ctx.beginPath();
+    ctx.arc(foodCx, foodCy, CELL_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Highlight on disc
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(foodCx - 2, foodCy - 3, 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Snake
-    snake.forEach((segment, index) => {
-      const isHead = index === 0;
-      const progress = index / snake.length;
+    // Draw ducklings (body) - from tail to head so head is on top
+    for (let i = snake.length - 1; i >= 1; i--) {
+      const segment = snake[i];
+      const cx = segment.x * CELL_SIZE + CELL_SIZE / 2;
+      const cy = segment.y * CELL_SIZE + CELL_SIZE / 2;
+      const progress = i / snake.length;
 
-      if (isHead) {
-        ctx.shadowColor = '#4ecdc4';
-        ctx.shadowBlur = 8;
-        ctx.fillStyle = '#4ecdc4';
-      } else {
-        ctx.shadowBlur = 0;
-        const r = Math.round(78 - progress * 30);
-        const g = Math.round(205 - progress * 60);
-        const b = Math.round(196 - progress * 60);
-        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
-      }
+      // Chick body
+      const chickSize = CELL_SIZE / 2 - 1;
 
-      const padding = isHead ? 1 : 2;
-      const radius = isHead ? 5 : 3;
-
-      // Rounded rect
-      const x = segment.x * CELL_SIZE + padding;
-      const y = segment.y * CELL_SIZE + padding;
-      const w = CELL_SIZE - padding * 2;
-      const h = CELL_SIZE - padding * 2;
-
+      // Body shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
       ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + w - radius, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-      ctx.lineTo(x + w, y + h - radius);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
-      ctx.lineTo(x + radius, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
+      ctx.arc(cx + 1, cy + 1, chickSize, 0, Math.PI * 2);
       ctx.fill();
 
-      // Eyes on head
-      if (isHead) {
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#1a1a2e';
-        const eyeSize = 3;
-        let eye1X = 0, eye1Y = 0, eye2X = 0, eye2Y = 0;
-        const cx = segment.x * CELL_SIZE + CELL_SIZE / 2;
-        const cy = segment.y * CELL_SIZE + CELL_SIZE / 2;
+      // Body
+      const chickGrad = ctx.createRadialGradient(cx - 2, cy - 2, 1, cx, cy, chickSize);
+      chickGrad.addColorStop(0, '#fff176');
+      chickGrad.addColorStop(0.6, '#ffeb3b');
+      chickGrad.addColorStop(1, '#f9a825');
+      ctx.fillStyle = chickGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, chickSize, 0, Math.PI * 2);
+      ctx.fill();
 
-        switch (direction) {
-          case 'RIGHT':
-            eye1X = cx + 4; eye1Y = cy - 4;
-            eye2X = cx + 4; eye2Y = cy + 4;
-            break;
-          case 'LEFT':
-            eye1X = cx - 4; eye1Y = cy - 4;
-            eye2X = cx - 4; eye2Y = cy + 4;
-            break;
-          case 'UP':
-            eye1X = cx - 4; eye1Y = cy - 4;
-            eye2X = cx + 4; eye2Y = cy - 4;
-            break;
-          case 'DOWN':
-            eye1X = cx - 4; eye1Y = cy + 4;
-            eye2X = cx + 4; eye2Y = cy + 4;
-            break;
-        }
+      // Tiny eyes
+      ctx.fillStyle = '#333';
+      const eyeOff = 2.5;
+      // Determine eye position based on direction of the segment ahead
+      const prevSeg = snake[i - 1];
+      const ddx = prevSeg.x - segment.x;
+      const ddy = prevSeg.y - segment.y;
+
+      let e1x = cx, e1y = cy, e2x = cx, e2y = cy;
+      if (ddx > 0) { // moving right
+        e1x = cx + eyeOff; e1y = cy - 2;
+        e2x = cx + eyeOff; e2y = cy + 2;
+      } else if (ddx < 0) { // moving left
+        e1x = cx - eyeOff; e1y = cy - 2;
+        e2x = cx - eyeOff; e2y = cy + 2;
+      } else if (ddy < 0) { // moving up
+        e1x = cx - 2; e1y = cy - eyeOff;
+        e2x = cx + 2; e2y = cy - eyeOff;
+      } else { // moving down
+        e1x = cx - 2; e1y = cy + eyeOff;
+        e2x = cx + 2; e2y = cy + eyeOff;
+      }
+
+      ctx.beginPath();
+      ctx.arc(e1x, e1y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(e2x, e2y, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Tiny beak
+      ctx.fillStyle = '#ff8f00';
+      let beakX = cx, beakY = cy;
+      if (ddx > 0) { beakX = cx + chickSize; beakY = cy; }
+      else if (ddx < 0) { beakX = cx - chickSize; beakY = cy; }
+      else if (ddy < 0) { beakX = cx; beakY = cy - chickSize; }
+      else { beakX = cx; beakY = cy + chickSize; }
+
+      ctx.beginPath();
+      ctx.arc(beakX, beakY, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Slight opacity for older chicks
+      if (progress > 0.7) {
+        ctx.fillStyle = `rgba(45, 90, 39, ${(progress - 0.7) * 0.3})`;
         ctx.beginPath();
-        ctx.arc(eye1X, eye1Y, eyeSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(eye2X, eye2Y, eyeSize, 0, Math.PI * 2);
+        ctx.arc(cx, cy, chickSize, 0, Math.PI * 2);
         ctx.fill();
       }
-    });
+    }
+
+    // Draw duck head (first segment)
+    const head = snake[0];
+    const hx = head.x * CELL_SIZE + CELL_SIZE / 2;
+    const hy = head.y * CELL_SIZE + CELL_SIZE / 2;
+
+    // Head shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath();
+    ctx.arc(hx + 1, hy + 1, CELL_SIZE / 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Duck body (white/cream)
+    const duckGrad = ctx.createRadialGradient(hx - 2, hy - 2, 1, hx, hy, CELL_SIZE / 2);
+    duckGrad.addColorStop(0, '#ffffff');
+    duckGrad.addColorStop(0.5, '#f5f5f5');
+    duckGrad.addColorStop(1, '#e0e0e0');
+    ctx.fillStyle = duckGrad;
+    ctx.beginPath();
+    ctx.arc(hx, hy, CELL_SIZE / 2 - 1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Duck outline
+    ctx.strokeStyle = '#bdbdbd';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.arc(hx, hy, CELL_SIZE / 2 - 1, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Duck eyes
+    ctx.fillStyle = '#1a1a1a';
+    let duckEye1X = hx, duckEye1Y = hy, duckEye2X = hx, duckEye2Y = hy;
+    const eyeDist = 3;
+
+    switch (direction) {
+      case 'RIGHT':
+        duckEye1X = hx + 3; duckEye1Y = hy - 3;
+        duckEye2X = hx + 3; duckEye2Y = hy + 3;
+        break;
+      case 'LEFT':
+        duckEye1X = hx - 3; duckEye1Y = hy - 3;
+        duckEye2X = hx - 3; duckEye2Y = hy + 3;
+        break;
+      case 'UP':
+        duckEye1X = hx - 3; duckEye1Y = hy - 3;
+        duckEye2X = hx + 3; duckEye2Y = hy - 3;
+        break;
+      case 'DOWN':
+        duckEye1X = hx - 3; duckEye1Y = hy + 3;
+        duckEye2X = hx + 3; duckEye2Y = hy + 3;
+        break;
+    }
+
+    ctx.beginPath();
+    ctx.arc(duckEye1X, duckEye1Y, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(duckEye2X, duckEye2Y, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye shine
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(duckEye1X + 0.5, duckEye1Y - 0.5, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(duckEye2X + 0.5, duckEye2Y - 0.5, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Duck beak (orange)
+    ctx.fillStyle = '#ff8f00';
+    let beakTipX = hx, beakTipY = hy;
+    switch (direction) {
+      case 'RIGHT': beakTipX = hx + CELL_SIZE / 2 + 2; beakTipY = hy; break;
+      case 'LEFT': beakTipX = hx - CELL_SIZE / 2 - 2; beakTipY = hy; break;
+      case 'UP': beakTipX = hx; beakTipY = hy - CELL_SIZE / 2 - 2; break;
+      case 'DOWN': beakTipX = hx; beakTipY = hy + CELL_SIZE / 2 + 2; break;
+    }
+
+    ctx.beginPath();
+    if (direction === 'RIGHT' || direction === 'LEFT') {
+      ctx.ellipse(beakTipX, beakTipY, 4, 2.5, 0, 0, Math.PI * 2);
+    } else {
+      ctx.ellipse(beakTipX, beakTipY, 2.5, 4, 0, 0, Math.PI * 2);
+    }
+    ctx.fill();
+
+    // Beak detail
+    ctx.strokeStyle = '#e65100';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    if (direction === 'RIGHT' || direction === 'LEFT') {
+      ctx.moveTo(beakTipX - 2, beakTipY);
+      ctx.lineTo(beakTipX + 2, beakTipY);
+    } else {
+      ctx.moveTo(beakTipX, beakTipY - 2);
+      ctx.lineTo(beakTipX, beakTipY + 2);
+    }
+    ctx.stroke();
 
     // Overlay for paused/gameover
     if (gameState === 'paused') {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
       ctx.fillRect(0, 0, size, size);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 24px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('PAUSA', size / 2, size / 2 - 10);
-      ctx.font = '14px sans-serif';
-      ctx.fillText('Premi Spazio per continuare', size / 2, size / 2 + 20);
+      ctx.fillText('⏸ PAUSA', size / 2, size / 2 - 10);
+      ctx.font = '13px sans-serif';
+      ctx.fillStyle = '#cccccc';
+      ctx.fillText('Premi Spazio per continuare', size / 2, size / 2 + 18);
     }
 
     if (gameState === 'gameover') {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
       ctx.fillRect(0, 0, size, size);
       ctx.fillStyle = '#ff6b6b';
-      ctx.font = 'bold 28px sans-serif';
+      ctx.font = 'bold 24px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('GAME OVER', size / 2, size / 2 - 20);
+      ctx.fillText('💥 GAME OVER', size / 2, size / 2 - 25);
       ctx.fillStyle = '#ffffff';
-      ctx.font = '16px sans-serif';
-      ctx.fillText(`Punteggio: ${score}`, size / 2, size / 2 + 15);
-      ctx.font = '13px sans-serif';
+      ctx.font = '15px sans-serif';
+      ctx.fillText(`Punteggio: ${score}`, size / 2, size / 2 + 5);
+      ctx.font = '12px sans-serif';
       ctx.fillStyle = '#aaaaaa';
-      ctx.fillText('Premi Spazio o tocca per ricominciare', size / 2, size / 2 + 45);
+      ctx.fillText('Spazio o tocca per ricominciare', size / 2, size / 2 + 30);
     }
 
     if (gameState === 'idle') {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
       ctx.fillRect(0, 0, size, size);
-      ctx.fillStyle = '#4ecdc4';
-      ctx.font = 'bold 28px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('🐍 SNAKE', size / 2, size / 2 - 20);
       ctx.fillStyle = '#ffffff';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('Premi Spazio o tocca per iniziare', size / 2, size / 2 + 15);
+      ctx.font = 'bold 26px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🦆 Duck Snake', size / 2, size / 2 - 20);
+      ctx.fillStyle = '#e0e0e0';
+      ctx.font = '13px sans-serif';
+      ctx.fillText('Spazio o tocca per iniziare', size / 2, size / 2 + 12);
     }
   }, [snake, food, direction, gameState, score]);
 
@@ -429,32 +559,32 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-900 to-gray-900 flex flex-col items-center justify-center p-4 select-none">
+    <div className="min-h-screen bg-gradient-to-br from-green-950 via-emerald-950 to-green-950 flex flex-col items-center justify-center p-4 select-none">
       {/* Header */}
       <div className="w-full max-w-lg mb-4">
-        <h1 className="text-3xl md:text-4xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 mb-2">
-          🐍 Snake Game
+        <h1 className="text-3xl md:text-4xl font-bold text-center text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-400 mb-2">
+          🦆 Duck Snake
         </h1>
 
         {/* Score Board */}
-        <div className="flex justify-between items-center bg-slate-800/80 backdrop-blur-sm rounded-xl px-4 py-3 border border-slate-700/50">
+        <div className="flex justify-between items-center bg-green-900/60 backdrop-blur-sm rounded-xl px-4 py-3 border border-green-700/40">
           <div className="text-center">
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Punteggio</div>
-            <div className="text-2xl font-bold text-emerald-400">{score}</div>
+            <div className="text-xs text-green-400/70 uppercase tracking-wider">Punteggio</div>
+            <div className="text-2xl font-bold text-yellow-300">{score}</div>
           </div>
           <div className="text-center">
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Record</div>
-            <div className="text-2xl font-bold text-amber-400">{highScore}</div>
+            <div className="text-xs text-green-400/70 uppercase tracking-wider">Record</div>
+            <div className="text-2xl font-bold text-amber-400">🏆 {highScore}</div>
           </div>
           <div className="text-center">
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Difficoltà</div>
-            <div className="text-lg font-bold text-cyan-400">{DIFFICULTY_LABELS[difficulty]}</div>
+            <div className="text-xs text-green-400/70 uppercase tracking-wider">Difficoltà</div>
+            <div className="text-lg font-bold text-orange-300">{DIFFICULTY_LABELS[difficulty]}</div>
           </div>
         </div>
       </div>
 
       {/* Game Canvas */}
-      <div className="relative rounded-xl overflow-hidden shadow-2xl shadow-emerald-500/10 border-2 border-slate-700/50">
+      <div className="relative rounded-xl overflow-hidden shadow-2xl shadow-green-500/10 border-2 border-green-700/40">
         <canvas
           ref={canvasRef}
           width={GRID_SIZE * CELL_SIZE}
@@ -468,8 +598,8 @@ export default function App() {
       {/* Controls */}
       <div className="w-full max-w-lg mt-4 space-y-3">
         {/* Difficulty Selector */}
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-sm text-slate-400 mr-2">Difficoltà:</span>
+        <div className="flex items-center justify-center gap-2 flex-wrap">
+          <span className="text-sm text-green-400/70 mr-2">Difficoltà:</span>
           {(['easy', 'medium', 'hard'] as Difficulty[]).map(d => (
             <button
               key={d}
@@ -482,11 +612,11 @@ export default function App() {
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 difficulty === d
                   ? d === 'easy'
-                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50'
+                    ? 'bg-green-500/20 text-green-300 border border-green-500/50'
                     : d === 'medium'
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50'
-                    : 'bg-red-500/20 text-red-400 border border-red-500/50'
-                  : 'bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500'
+                    ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50'
+                    : 'bg-red-500/20 text-red-300 border border-red-500/50'
+                  : 'bg-green-900/50 text-green-400/60 border border-green-700/40 hover:border-green-500/50'
               } ${gameState === 'playing' ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
               {DIFFICULTY_LABELS[d]}
@@ -499,7 +629,7 @@ export default function App() {
           {gameState === 'idle' ? (
             <button
               onClick={startGame}
-              className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-200 hover:scale-105 active:scale-95"
+              className="px-6 py-2.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white font-semibold rounded-xl shadow-lg shadow-orange-500/25 hover:shadow-orange-500/40 transition-all duration-200 hover:scale-105 active:scale-95"
             >
               ▶ Inizia
             </button>
@@ -507,13 +637,13 @@ export default function App() {
             <>
               <button
                 onClick={togglePause}
-                className="px-5 py-2.5 bg-slate-700 text-slate-200 font-medium rounded-xl border border-slate-600 hover:bg-slate-600 transition-all duration-200 hover:scale-105 active:scale-95"
+                className="px-5 py-2.5 bg-green-800/60 text-green-200 font-medium rounded-xl border border-green-600/40 hover:bg-green-700/60 transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 {gameState === 'paused' ? '▶ Riprendi' : '⏸ Pausa'}
               </button>
               <button
                 onClick={resetGame}
-                className="px-5 py-2.5 bg-slate-700 text-slate-200 font-medium rounded-xl border border-slate-600 hover:bg-slate-600 transition-all duration-200 hover:scale-105 active:scale-95"
+                className="px-5 py-2.5 bg-green-800/60 text-green-200 font-medium rounded-xl border border-green-600/40 hover:bg-green-700/60 transition-all duration-200 hover:scale-105 active:scale-95"
               >
                 🔄 Reset
               </button>
@@ -528,33 +658,33 @@ export default function App() {
               <div></div>
               <button
                 onTouchStart={(e) => { e.preventDefault(); changeDirection('UP'); }}
-                className="aspect-square bg-slate-700/80 rounded-xl flex items-center justify-center text-2xl text-slate-300 active:bg-slate-600 active:scale-95 transition-all border border-slate-600/50"
+                className="aspect-square bg-green-800/60 rounded-xl flex items-center justify-center text-2xl text-green-200 active:bg-green-700 active:scale-95 transition-all border border-green-600/40"
               >
                 ↑
               </button>
               <div></div>
               <button
                 onTouchStart={(e) => { e.preventDefault(); changeDirection('LEFT'); }}
-                className="aspect-square bg-slate-700/80 rounded-xl flex items-center justify-center text-2xl text-slate-300 active:bg-slate-600 active:scale-95 transition-all border border-slate-600/50"
+                className="aspect-square bg-green-800/60 rounded-xl flex items-center justify-center text-2xl text-green-200 active:bg-green-700 active:scale-95 transition-all border border-green-600/40"
               >
                 ←
               </button>
               <button
                 onTouchStart={(e) => { e.preventDefault(); togglePause(); }}
-                className="aspect-square bg-slate-700/50 rounded-xl flex items-center justify-center text-sm text-slate-400 active:bg-slate-600 active:scale-95 transition-all border border-slate-600/50"
+                className="aspect-square bg-green-800/40 rounded-xl flex items-center justify-center text-sm text-green-300 active:bg-green-700 active:scale-95 transition-all border border-green-600/40"
               >
                 ⏸
               </button>
               <button
                 onTouchStart={(e) => { e.preventDefault(); changeDirection('RIGHT'); }}
-                className="aspect-square bg-slate-700/80 rounded-xl flex items-center justify-center text-2xl text-slate-300 active:bg-slate-600 active:scale-95 transition-all border border-slate-600/50"
+                className="aspect-square bg-green-800/60 rounded-xl flex items-center justify-center text-2xl text-green-200 active:bg-green-700 active:scale-95 transition-all border border-green-600/40"
               >
                 →
               </button>
               <div></div>
               <button
                 onTouchStart={(e) => { e.preventDefault(); changeDirection('DOWN'); }}
-                className="aspect-square bg-slate-700/80 rounded-xl flex items-center justify-center text-2xl text-slate-300 active:bg-slate-600 active:scale-95 transition-all border border-slate-600/50"
+                className="aspect-square bg-green-800/60 rounded-xl flex items-center justify-center text-2xl text-green-200 active:bg-green-700 active:scale-95 transition-all border border-green-600/40"
               >
                 ↓
               </button>
@@ -564,9 +694,10 @@ export default function App() {
         )}
 
         {/* Instructions */}
-        <div className="text-center text-xs text-slate-500 mt-3 space-y-0.5">
+        <div className="text-center text-xs text-green-500/60 mt-3 space-y-0.5">
           <p>🎮 Frecce / WASD per muoversi • Spazio per pausa/riprendi</p>
           <p>📱 Swipe sullo schermo o usa i pulsanti direzionali</p>
+          <p className="pt-1 text-green-400/50">Guida l'anatra 🦆 e raccogli i suoi pulcini 🐥 mangiando i dischetti!</p>
         </div>
       </div>
     </div>
